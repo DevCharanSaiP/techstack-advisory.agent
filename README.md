@@ -1,58 +1,48 @@
 # Stackwise — Tech Stack Architecture Advisor
 
-A single-agent Streamlit app that recommends a technology stack and a practical architecture from a project brief and optional constraints. It connects to Hugging Face Inference Providers through `huggingface_hub.InferenceClient`.
+Stackwise is a Streamlit app that turns a project brief and technical constraints into a practical technology-stack and architecture recommendation. It uses Google's Gemini API through the `google-genai` Python SDK.
 
-## Features
+## What it does
 
-- Project type, stage, budget, scale, deployment, availability, team experience, and priorities.
-- Optional constraints for languages, frontend, database, storage, integrations, AI/ML, security, and technologies to avoid.
-- A focused system prompt that asks for one primary recommendation, trade-offs, cost limitations, risks, and an implementation roadmap.
-- Download the recommendation as Markdown.
-- Local `.env` support and Streamlit Community Cloud secrets support.
-- No database required for the initial version.
+- Collects a project description and context such as application type, budget, expected scale, project stage, team experience, deployment preference, availability needs, and priorities.
+- Accepts optional constraints for languages, frontend, database, storage, integrations, AI/ML, security/compliance, and technologies to avoid.
+- Sends the brief to Gemini with an architecture-focused prompt designed to return a primary recommendation, trade-offs and risks, an implementation roadmap, alternatives, and open questions.
+- Displays the generated recommendation and lets you download it as a Markdown file.
+- Supports a configurable Gemini model ID. The default is `gemini-2.5-flash`; model availability and account quotas may vary.
 
-## Exact project files
+Recommendations are decision support, not verified cost estimates, security reviews, compliance assessments, or load tests.
+
+## Project files
 
 ```text
-tech_stack_architecture_advisor/
-├── app.py
-├── prompts.py
-├── style.py
-├── .env
-├── README.md
-└── requirements.txt
+.
+├── app.py           # Streamlit interface and Gemini API calls
+├── prompts.py       # System prompt and project-brief formatting
+├── style.py         # App styling
+├── checkmodels.py   # Optional Gemini model-listing utility
+├── requirements.txt
+└── README.md
 ```
 
-## 1. Prerequisites
+Local configuration such as `.env`, virtual environments, and Python cache files is excluded from Git.
 
-- Python 3.10 or newer (use a version supported by Streamlit Community Cloud).
-- A Hugging Face account and a user access token with the permissions required by your selected inference provider/model.
-- An inference model that is currently available through Hugging Face Inference Providers.
+## Requirements
 
-Inference availability, model support, free credits, rate limits, and provider pricing can change. A Hugging Face token authenticates requests; it does not guarantee unlimited or free inference.
+- Python 3.10 or newer, using a version supported by the current Streamlit and Google Gen AI SDK releases.
+- A Google AI Studio API key with access to the Gemini API.
+- Internet access while running the app.
 
-## 2. Configure the token
+Gemini model access, quotas, pricing, and free-tier availability can change. Check the current Google AI Studio documentation and account limits before relying on a model or cost assumption.
 
-Edit `.env`:
+## Run locally
 
-```dotenv
-HF_TOKEN=hf_your_actual_token
-HF_MODEL=openai/gpt-oss-20b
-```
-
-Replace the token placeholder. If the default model is unavailable to your account or provider, change `HF_MODEL` to a chat-completion model currently supported by your Hugging Face account.
-
-**Security:** Never commit a real `.env` or publish your token. This project intentionally contains only the requested files, so be especially careful when staging files for Git. Do not use `git add .` until you have ensured `.env` is excluded. If a token is exposed, revoke it and create a new one.
-
-## 3. Install and run locally
+### 1. Create and activate a virtual environment
 
 Windows PowerShell:
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-streamlit run app.py
+.\.venv\Scripts\Activate.ps1
 ```
 
 macOS/Linux:
@@ -60,37 +50,69 @@ macOS/Linux:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+```
+
+### 2. Install dependencies
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 3. Configure credentials
+
+Create a `.env` file in the project root:
+
+```dotenv
+GOOGLE_API_KEY=your_google_ai_studio_api_key
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+`GOOGLE_API_KEY` is required. `GEMINI_MODEL` is optional; when omitted, the app uses `gemini-2.5-flash`. You can also change the model ID in the app's sidebar.
+
+Never commit or share a real API key. Keep `.env` local; the repository's `.gitignore` excludes it. If a key is exposed, revoke it and create a replacement.
+
+### 4. Start the app
+
+```bash
 streamlit run app.py
 ```
 
-Open the local URL printed in the terminal, usually `http://localhost:8501`.
+Open the local URL printed by Streamlit, usually `http://localhost:8501`.
 
-## 4. Deploy for free on Streamlit Community Cloud
+## Deploy on Streamlit Community Cloud
 
-1. Create a GitHub repository containing `app.py`, `prompts.py`, `style.py`, `README.md`, and `requirements.txt`.
-2. Do **not** upload the real `.env`. Keep it local.
-3. Push the safe project files to GitHub.
-4. Open [Streamlit Community Cloud](https://share.streamlit.io/) and create an app from the repository, selecting `app.py` as the entrypoint.
-5. In the app's Advanced settings / Secrets field, add:
+1. Push the project files to a GitHub repository. Do not upload `.env`.
+2. Create a Streamlit Community Cloud app connected to the repository and select `app.py` as the entry point.
+3. Add the following in the app's **Secrets** settings, replacing the example key:
 
    ```toml
-   HF_TOKEN = "hf_your_actual_token"
-   HF_MODEL = "openai/gpt-oss-20b"
+   GOOGLE_API_KEY = "your_google_ai_studio_api_key"
+   GEMINI_MODEL = "gemini-2.5-flash"
    ```
 
-6. Deploy and test with a non-sensitive project brief.
+The app prefers Streamlit deployment secrets when available and otherwise reads local environment variables loaded from `.env`. Deployment secrets are not stored in the repository.
 
-Streamlit Community Cloud can sleep or have resource limitations. Hugging Face inference can also have quotas, provider/model availability constraints, or paid usage. Free deployment does not mean unlimited uptime or unlimited inference.
+## Optional: list available models
 
-## 5. Troubleshooting
+With `GOOGLE_API_KEY` set in the environment or in the root `.env`, run:
 
-- **401 / 403:** Check the token, model access, and provider permissions.
-- **Model not supported / no provider:** Choose a model currently supported by Hugging Face Inference Providers.
-- **Rate limit / quota:** Wait for quota reset or select an available provider/model. Do not assume a paid fallback is free.
-- **Empty or poor recommendations:** Give a more specific project brief, reduce conflicting constraints, or choose a model with stronger instruction-following ability.
-- **Deployment can't find a package:** Check `requirements.txt` and the build logs.
+```bash
+python checkmodels.py
+```
 
-## Architecture
+The script lists models that advertise `generateContent` support for the configured key. It is a diagnostic aid; availability can change, and the app may still be subject to model-specific permissions or quotas.
 
-`app.py` collects inputs and calls Hugging Face. `prompts.py` holds the advisor's system prompt and formats the brief. `style.py` contains presentation styling. The first version is a single LLM-powered advisor, not a multi-agent system and not a verified cloud-cost calculator.
+## Privacy and troubleshooting
+
+The project brief is sent to Google's Gemini API to generate a recommendation. Do not submit passwords, API keys, credentials, personal data, or confidential information.
+
+- **API key not configured:** Set `GOOGLE_API_KEY` in `.env` for local use or Streamlit secrets for deployment.
+- **Authentication error (401):** Check that the key is valid and belongs to the intended Google AI Studio account.
+- **Access error (403):** Check model access, API permissions, and account or regional restrictions.
+- **Quota or rate-limit error (429):** Review current account/model limits and try again when permitted.
+- **Model not found or unavailable:** Verify the model ID and that it is available to your API key; choose another supported ID in the sidebar.
+- **Timeout:** Retry or shorten the project description.
+
+## How recommendations are formed
+
+`app.py` collects the form values, constructs a project brief, and calls the Gemini API. `prompts.py` supplies the system instructions and formats the brief. `style.py` applies the interface styling. The app generates one model response per submission; it is not a multi-agent system or an automated architecture-validation service.
